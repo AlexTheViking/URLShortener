@@ -23,7 +23,6 @@ window.onload = () => {
 
         parts = input.value.split("://");
         if(parts.length < 2 || (parts[0] != 'http' && parts[0] != 'https')){
-            console.log('NOT URL');
             warn.classList.remove('hidden');
         }else{
             warn.classList.add('hidden');

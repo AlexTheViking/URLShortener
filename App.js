@@ -10,7 +10,7 @@ const mongoDB = "url_shortener_db";
 const mongoCollection = "shorts";
 const mongoClient = new MongoClient(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true});
 
-
+const stringAlpha = "abcdefjhijklmnopqrstuvwxyzABCDEFGHIJKLNMOPQRSTUVWXYZ";
 
 async function saveShort(short, full){
     let resp;
@@ -27,17 +27,19 @@ async function saveShort(short, full){
         }
     }finally{
         connection.close();
+        return resp;
     }
-
-    return true; 
 }
 
 async function checkFull(full){
     let resp;
-    let connection = await mongoClient.connect();
-    const db = connection.db(mongoDB);
-    const collection = db.collection(mongoCollection);
+        
+    let connection1 = await mongoClient.connect();
     try{
+    const db = connection1.db(mongoDB);
+    const collection = db.collection(mongoCollection);
+    
+    
         resp = await collection.findOne({fullLink:full});
         if(resp){
             resp = resp.shortLink;
@@ -45,10 +47,9 @@ async function checkFull(full){
             resp = false;
         }
     }finally{
-        connection.close();
+        connection1.close();
+        return resp;
     }
-    
-    return resp;
 }
 
 async function getShort(URL){
@@ -56,15 +57,13 @@ async function getShort(URL){
     readyShort = await checkFull(URL);
     if(readyShort){return readyShort};
 
-    let string = "abcdefjhijklmnopqrstuvwxyz";
-    string += string.toUpperCase();
     let address;
     
     do{
         address = '';
         for(let i = 0; i < shortUrlLength; i++){
-            let index = Math.round(- 0.5 + Math.random() * (string.length));
-            address += string[index];
+            let index = Math.round(- 0.5 + Math.random() * (stringAlpha.length));
+            address += stringAlpha[index];
         }
     }while(! await saveShort(address, URL));
     
@@ -73,23 +72,23 @@ async function getShort(URL){
 
 async function count(short){
     let resp;
-    let connection = await mongoClient.connect();
-    const db = connection.db(mongoDB);
-    const collection = db.collection(mongoCollection);
+    let connection3 = await mongoClient.connect();
+    const db = connection3.db(mongoDB);
+    const collection = db.collection3(mongoCollection);
     try{
-        record = await collection.findOne({shortLink:short});
-        await collection.updateOne({shortLink:short}, {$set: {uses : record.uses + 1}});
+        record = await collection3.findOne({shortLink:short});
+        await collection3.updateOne({shortLink:short}, {$set: {uses : record.uses + 1}});
     }finally{
-        connection.close();
+        connection3.close();
+        return resp; 
     }
-    return resp; 
 }
 
 
 async function getFull(short){
     let resp;
-    let connection = await mongoClient.connect();
-    const db = connection.db(mongoDB);
+    let connection4 = await mongoClient.connect();
+    const db = connection4.db(mongoDB);
     const collection = db.collection(mongoCollection);
     try{
         resp = await collection.findOne({shortLink:short});
@@ -100,9 +99,9 @@ async function getFull(short){
             resp = false;
         }
     }finally{
-        connection.close();
+        connection4.close();
+        return resp;
     }
-    return resp; 
 }
 
 async function handleRequest(path, host){
@@ -122,22 +121,17 @@ async function handleRequest(path, host){
     }
 
     let fullAddress = await getFull(path.split('/').join(''));
-        if(fullAddress){
-            fullAddress = fullAddress.split(">>>");
-        }else{
-            return ["text/html", fs.readFileSync("./client/notfound.html")];    
-        }
-        
+    if(fullAddress){
+        fullAddress = fullAddress.split(">>>");
+    }else{
+        return ["text/html", fs.readFileSync("./client/notfound.html")];    
+    }
 
     if(fullAddress[0]=='FULL'){
         return [false, await fullAddress[1]];
     }else{
         return ["text/html", fs.readFileSync("./client/index.html")];
     }
-
-    
-    // favicon обработать
-    //return [false,false];
     
 }
 
@@ -154,6 +148,6 @@ http.createServer(async function (request, response) {
     
     response.writeHead(200, { 'Content-Type': contentType });
     response.end(content, 'utf-8');
-}).listen(8080);
+}).listen(port);
 
 console.log(`Server running at http://127.0.0.1:${port}/`);
