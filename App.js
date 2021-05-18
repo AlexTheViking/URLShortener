@@ -10,55 +10,33 @@ const mongoDB = "url_shortener_db";
 const mongoCollection = "shorts";
 const mongoClient = new MongoClient(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true});
 
+let db;
+let collection;
+let connection;
+let promise = mongoClient.connect();
+promise.then((resp)=>{
+    connection = resp;
+    db = connection.db(mongoDB);
+    collection = db.collection(mongoCollection);
+});
+  
+
 const stringAlpha = "abcdefjhijklmnopqrstuvwxyzABCDEFGHIJKLNMOPQRSTUVWXYZ";
 
 async function saveShort(short, full){
     let resp;
-    let connection = await mongoClient.connect();
-    const db = connection.db(mongoDB);
-    const collection = db.collection(mongoCollection);
-    try{
-        const check = await collection.findOne({shortLink:short});
-        if(!check){
-            await collection.insertOne({shortLink:short, fullLink:full, uses:0});
-            resp = true;
-        }else{
-            resp = false;
-        }
-    }finally{
-        connection.close();
-        return resp;
+    const check = await collection.findOne({shortLink:short});
+    if(!check){
+        await collection.insertOne({shortLink:short, fullLink:full, uses:0});
+        resp = true;
+    }else{
+        resp = false;
     }
-}
-
-async function checkFull(full){
-    let resp;
-        
-    let connection1 = await mongoClient.connect();
-    try{
-    const db = connection1.db(mongoDB);
-    const collection = db.collection(mongoCollection);
-    
-    
-        resp = await collection.findOne({fullLink:full});
-        if(resp){
-            resp = resp.shortLink;
-        }else{
-            resp = false;
-        }
-    }finally{
-        connection1.close();
-        return resp;
-    }
+    return resp;
 }
 
 async function getShort(URL){
-
-    readyShort = await checkFull(URL);
-    if(readyShort){return readyShort};
-
     let address;
-    
     do{
         address = '';
         for(let i = 0; i < shortUrlLength; i++){
@@ -70,38 +48,16 @@ async function getShort(URL){
     return address;
 }
 
-async function count(short){
-    let resp;
-    let connection3 = await mongoClient.connect();
-    const db = connection3.db(mongoDB);
-    const collection = db.collection3(mongoCollection);
-    try{
-        record = await collection3.findOne({shortLink:short});
-        await collection3.updateOne({shortLink:short}, {$set: {uses : record.uses + 1}});
-    }finally{
-        connection3.close();
-        return resp; 
-    }
-}
-
-
 async function getFull(short){
     let resp;
-    let connection4 = await mongoClient.connect();
-    const db = connection4.db(mongoDB);
-    const collection = db.collection(mongoCollection);
-    try{
-        resp = await collection.findOne({shortLink:short});
-        if(resp){
-            resp = "FULL>>>" + resp.fullLink;
-            await count(short);
-        }else{
-            resp = false;
-        }
-    }finally{
-        connection4.close();
-        return resp;
+    resp = await collection.findOne({shortLink:short});
+    if(resp){
+        await collection.updateOne({shortLink:short}, {$set: {uses : resp.uses + 1}});
+        resp = "FULL>>>" + resp.fullLink;
+    }else{
+        resp = false;
     }
+    return resp;
 }
 
 async function handleRequest(path, host){
