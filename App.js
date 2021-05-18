@@ -24,15 +24,11 @@ promise.then((resp)=>{
 const stringAlpha = "abcdefjhijklmnopqrstuvwxyzABCDEFGHIJKLNMOPQRSTUVWXYZ";
 
 async function saveShort(short, full){
-    let resp;
-    const check = await collection.findOne({shortLink:short});
-    if(!check){
-        await collection.insertOne({shortLink:short, fullLink:full, uses:0});
-        resp = true;
-    }else{
-        resp = false;
+    if(await collection.findOne({shortLink:short})){
+        return false;
     }
-    return resp;
+    await collection.insertOne({shortLink:short, fullLink:full, uses:0});
+    return true;
 }
 
 async function getShort(URL){
@@ -49,15 +45,12 @@ async function getShort(URL){
 }
 
 async function getFull(short){
-    let resp;
-    resp = await collection.findOne({shortLink:short});
-    if(resp){
-        await collection.updateOne({shortLink:short}, {$set: {uses : resp.uses + 1}});
-        resp = "FULL>>>" + resp.fullLink;
-    }else{
-        resp = false;
+    let resp = await collection.findOne({shortLink:short});
+    if(!resp){
+        return false;    
     }
-    return resp;
+    await collection.updateOne({shortLink:short}, {$set: {uses : resp.uses + 1}});
+    return resp.fullLink;
 }
 
 async function handleRequest(path, host){
@@ -76,19 +69,11 @@ async function handleRequest(path, host){
         return ["text/plain", host +'/'+ await getShort(path.split('?url=')[1])];
     }
 
-    let fullAddress = await getFull(path.split('/').join(''));
-    if(fullAddress){
-        fullAddress = fullAddress.split(">>>");
-    }else{
-        return ["text/html", fs.readFileSync("./client/notfound.html")];    
+    let fullAddress = await getFull(path.slice(1));
+    if(!fullAddress){
+        return ["text/html", fs.readFileSync("./client/notfound.html")];
     }
-
-    if(fullAddress[0]=='FULL'){
-        return [false, await fullAddress[1]];
-    }else{
-        return ["text/html", fs.readFileSync("./client/index.html")];
-    }
-    
+    return [false, await fullAddress];
 }
 
 http.createServer(async function (request, response) {
